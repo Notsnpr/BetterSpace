@@ -94,6 +94,50 @@
       }));
   }
 
+  // ── Dark mode ────────────────────────────────────────────────────────────────
+
+  function injectDarkModeStyles() {
+    if (document.getElementById('bs-dark-mode-style')) return;
+    const style = document.createElement('style');
+    style.id = 'bs-dark-mode-style';
+    // CSS handles light-DOM video/iframe double-invert.
+    // Images are handled via JS (see applyImageCounterFilter) because shadow DOM
+    // images can't be reached with CSS selectors.
+    style.textContent = `
+      html.bs-dark-mode {
+        filter: invert(1) hue-rotate(180deg);
+      }
+      html.bs-dark-mode video,
+      html.bs-dark-mode iframe {
+        filter: invert(1) hue-rotate(180deg);
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Apply a counter-filter to every img (including inside shadow DOMs) so they
+  // get double-inverted back to their original colors.
+  function applyImageCounterFilter() {
+    queryShadowAll('img', document.body).forEach((img) => {
+      img.style.filter = 'invert(1) hue-rotate(180deg)';
+    });
+  }
+
+  function removeImageCounterFilter() {
+    queryShadowAll('img', document.body).forEach((img) => {
+      img.style.filter = '';
+    });
+  }
+
+  function applyDarkMode(enabled) {
+    document.documentElement.classList.toggle('bs-dark-mode', enabled);
+    if (enabled) {
+      applyImageCounterFilter();
+    } else {
+      removeImageCounterFilter();
+    }
+  }
+
   // ── Messages ─────────────────────────────────────────────────────────────────
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -105,6 +149,10 @@
       applyAllNames();
       sendResponse({ ok: true });
     }
+    if (message.type === 'SET_DARK_MODE') {
+      applyDarkMode(message.enabled);
+      sendResponse({ ok: true });
+    }
   });
 
   // ── Recursive MutationObserver ───────────────────────────────────────────────
@@ -113,7 +161,12 @@
 
   function scheduleApply() {
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(applyAllNames, 150);
+    debounceTimer = setTimeout(() => {
+      applyAllNames();
+      if (document.documentElement.classList.contains('bs-dark-mode')) {
+        applyImageCounterFilter();
+      }
+    }, 150);
   }
 
   function observeRoot(root) {
@@ -137,6 +190,10 @@
   // ── Init ─────────────────────────────────────────────────────────────────────
 
   async function init() {
+    const { darkMode } = await chrome.storage.local.get('darkMode');
+    injectDarkModeStyles();
+    applyDarkMode(!!darkMode);
+
     await loadSavedNames();
     observeRoot(document.body);
     applyAllNames();

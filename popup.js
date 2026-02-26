@@ -5,9 +5,13 @@
   const emptyStateEl = document.getElementById('empty-state');
   const errorStateEl = document.getElementById('error-state');
   const saveBtn = document.getElementById('save-btn');
+  const darkToggle = document.getElementById('dark-mode-toggle');
 
   // Tracks edits made in the popup before the user hits Save.
   const pendingEdits = {};
+
+  // Tab reference shared between dark mode and course rename logic.
+  let currentTab = null;
 
   // ── Tab helpers ──────────────────────────────────────────────────────────────
 
@@ -98,12 +102,34 @@
     Object.keys(pendingEdits).forEach((k) => delete pendingEdits[k]);
   }
 
+  // ── Dark mode ─────────────────────────────────────────────────────────────────
+
+  async function initDarkMode() {
+    const { darkMode } = await chrome.storage.local.get('darkMode');
+    darkToggle.checked = !!darkMode;
+
+    darkToggle.addEventListener('change', async () => {
+      const enabled = darkToggle.checked;
+      await chrome.storage.local.set({ darkMode: enabled });
+      if (currentTab) {
+        try {
+          await sendToContentScript(currentTab, { type: 'SET_DARK_MODE', enabled });
+        } catch {
+          // Not a Brightspace tab or content script unavailable; preference saved for next load.
+        }
+      }
+    });
+  }
+
   // ── Init ─────────────────────────────────────────────────────────────────────
 
   async function init() {
+    initDarkMode(); // runs in parallel — dark mode works even if course list fails
+
     let tab;
     try {
       tab = await getActiveTab();
+      currentTab = tab;
     } catch {
       errorStateEl.hidden = false;
       return;
