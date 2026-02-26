@@ -1,100 +1,105 @@
 (function () {
   'use strict';
 
-  // In-memory cache of saved names, populated on startup and after APPLY_NAMES.
   let savedNames = {};
+  let debounceTimer = null;
+  const observedRoots = new WeakSet();
 
-  // ── Storage helpers ──────────────────────────────────────────────────────────
+  // ── Storage ──────────────────────────────────────────────────────────────────
 
   async function loadSavedNames() {
     const result = await chrome.storage.local.get(null);
-    // Only keep numeric-keyed entries (course IDs).
     savedNames = Object.fromEntries(
       Object.entries(result).filter(([k]) => /^\d+$/.test(k))
     );
   }
 
-  // ── Course ID extraction ─────────────────────────────────────────────────────
+  // ── Shadow DOM traversal ─────────────────────────────────────────────────────
+  // Brightspace nests components ~5 shadow roots deep, so we recurse.
 
-  function extractCourseId(card) {
-    const href = card.getAttribute('href') || '';
-    const match = href.match(/\/d2l\/home\/(\d+)/);
+  function queryShadowAll(selector, root) {
+    const results = [...root.querySelectorAll(selector)];
+    root.querySelectorAll('*').forEach((el) => {
+      if (el.shadowRoot) results.push(...queryShadowAll(selector, el.shadowRoot));
+    });
+    return results;
+  }
+
+  // ── Course element discovery ─────────────────────────────────────────────────
+  //
+  // Structure (all inside shadow roots):
+  //   d2l-enrollment-card
+  //     shadowRoot
+  //       d2l-card [href="/d2l/home/{id}"]   ← course ID lives here
+  //       d2l-organization-name              ← VISIBLE text lives here
+  //         shadowRoot → text node
+
+  function extractCourseId(dCard) {
+    const match = (dCard.getAttribute('href') || '').match(/\/d2l\/home\/(\d+)/);
     return match ? match[1] : null;
   }
 
-  function getOriginalText(card) {
-    // Stamp the original Brightspace name once, before we ever mutate the attribute.
-    if (!card.dataset.bsOriginal) {
-      card.dataset.bsOriginal = card.getAttribute('text') || '';
-    }
-    return card.dataset.bsOriginal;
-  }
+  function findCourseElements() {
+    const results = [];
+    queryShadowAll('d2l-enrollment-card', document.body).forEach((enrollCard) => {
+      if (!enrollCard.shadowRoot) return;
+      const dCard = enrollCard.shadowRoot.querySelector('d2l-card');
+      if (!dCard) return;
+      const id = extractCourseId(dCard);
+      if (!id) return;
+      const orgName = enrollCard.shadowRoot.querySelector('d2l-organization-name');
+      if (!orgName || !orgName.shadowRoot) return;
 
-  // ── Shadow DOM rename ────────────────────────────────────────────────────────
-
-  function applyNameToCard(card, newName) {
-    const displayName = newName || card.dataset.bsOriginal || card.getAttribute('text') || '';
-
-    // Step A: update the host attribute so LitElement re-renders with our name.
-    card.setAttribute('text', displayName);
-
-    // Step B: update the shadow span immediately to avoid the async re-render flash.
-    const shadowRoot = card.shadowRoot;
-    if (shadowRoot) {
-      const span = shadowRoot.querySelector('.d2l-card-link-text');
-      if (span) {
-        span.textContent = displayName;
+      // Stamp the original visible name once, only after d2l-organization-name has loaded.
+      if (!enrollCard.dataset.bsOriginal) {
+        const text = orgName.shadowRoot.textContent.trim();
+        if (text) enrollCard.dataset.bsOriginal = text;
       }
-    }
+
+      results.push({ id, dCard, orgName, enrollCard });
+    });
+    return results;
   }
 
-  function restoreCard(card) {
-    applyNameToCard(card, card.dataset.bsOriginal || '');
-  }
-
-  // ── Apply all saved names to all current cards ───────────────────────────────
+  // ── Apply names ──────────────────────────────────────────────────────────────
 
   function applyAllNames() {
-    const cards = document.querySelectorAll('d2l-card');
-    cards.forEach((card) => {
-      const id = extractCourseId(card);
-      if (!id) return;
+    findCourseElements().forEach(({ id, dCard, orgName, enrollCard }) => {
+      const customName = savedNames[id];
+      const original = enrollCard.dataset.bsOriginal;
+      const displayName = customName || original;
+      if (!displayName) return;
 
-      // Preserve original before any mutation.
-      getOriginalText(card);
+      // Only write if the value is actually changing — prevents observer loops.
+      if (orgName.shadowRoot.textContent.trim() !== displayName) {
+        orgName.shadowRoot.textContent = displayName;
+      }
 
-      if (savedNames[id]) {
-        applyNameToCard(card, savedNames[id]);
-      } else {
-        restoreCard(card);
+      // Also update the offscreen span in d2l-card (screen reader / accessibility).
+      if (dCard.getAttribute('text') !== displayName) {
+        dCard.setAttribute('text', displayName);
       }
     });
   }
 
-  // ── Course list builder (for popup) ─────────────────────────────────────────
+  // ── Course list for popup ────────────────────────────────────────────────────
 
   function buildCourseList() {
-    const cards = document.querySelectorAll('d2l-card');
-    const courses = [];
-    cards.forEach((card) => {
-      const id = extractCourseId(card);
-      if (!id) return;
-      courses.push({
+    return findCourseElements()
+      .filter(({ enrollCard }) => enrollCard.dataset.bsOriginal) // skip not-yet-loaded
+      .map(({ id, enrollCard }) => ({
         id,
-        originalName: getOriginalText(card),
+        originalName: enrollCard.dataset.bsOriginal,
         savedName: savedNames[id] || '',
-      });
-    });
-    return courses;
+      }));
   }
 
-  // ── Message listener ─────────────────────────────────────────────────────────
+  // ── Messages ─────────────────────────────────────────────────────────────────
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.type === 'GET_COURSES') {
       sendResponse({ courses: buildCourseList() });
     }
-
     if (message.type === 'APPLY_NAMES') {
       savedNames = message.names;
       applyAllNames();
@@ -102,37 +107,39 @@
     }
   });
 
-  // ── MutationObserver ─────────────────────────────────────────────────────────
-
-  // Debounce to batch a full page of cards rendering at once (SPA navigation).
-  let debounceTimer = null;
+  // ── Recursive MutationObserver ───────────────────────────────────────────────
+  // Watches all shadow roots so we catch cards that load lazily (e.g. tab switches).
+  // The equality check in applyAllNames() prevents infinite observer loops.
 
   function scheduleApply() {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(applyAllNames, 150);
   }
 
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType !== Node.ELEMENT_NODE) continue;
-        const hasCard =
-          node.tagName === 'D2L-CARD' ||
-          node.querySelector?.('d2l-card') !== null;
-        if (hasCard) {
-          scheduleApply();
-          return;
+  function observeRoot(root) {
+    if (observedRoots.has(root)) return;
+    observedRoots.add(root);
+    new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE && node.shadowRoot) {
+            observeRoot(node.shadowRoot);
+          }
         }
       }
-    }
-  });
+      scheduleApply();
+    }).observe(root, { childList: true, subtree: true });
+    root.querySelectorAll('*').forEach((el) => {
+      if (el.shadowRoot) observeRoot(el.shadowRoot);
+    });
+  }
 
-  // ── Initialization ───────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────────
 
   async function init() {
     await loadSavedNames();
+    observeRoot(document.body);
     applyAllNames();
-    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   init();
