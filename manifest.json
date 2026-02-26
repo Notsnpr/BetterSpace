@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "BetterSpace",
+  "version": "1.0.0",
+  "description": "Rename Brightspace course cards to friendly titles.",
+
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["*://*.brightspace.com/*", "*://brightspace.utrgv.edu/*"],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "BetterSpace"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["*://*.brightspace.com/*", "*://brightspace.utrgv.edu/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

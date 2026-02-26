@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BetterSpace</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <h1>BetterSpace</h1>
+    <p class="subtitle">Rename your Brightspace courses</p>
+  </header>
+
+  <main id="course-list"></main>
+
+  <div id="empty-state" hidden>
+    <p>No courses found on this page.</p>
+    <p class="hint">Navigate to your Brightspace homepage to rename courses.</p>
+  </div>
+
+  <div id="error-state" hidden>
+    <p>Could not connect to the page.</p>
+    <p class="hint">Make sure you are on a Brightspace page and reload it.</p>
+  </div>
+
+  <footer>
+    <button id="save-btn" disabled>Save</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
