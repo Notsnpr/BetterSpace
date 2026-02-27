@@ -19,6 +19,39 @@
     <p class="subtitle">Rename your Brightspace courses</p>
   </header>
 
+  <!-- Collapsible theme panel -->
+  <div id="theme-panel">
+    <button id="theme-toggle" class="theme-toggle-btn">
+      Theme <span id="theme-arrow">&#9658;</span>
+    </button>
+    <div id="theme-content" hidden>
+      <div class="color-row">
+        <span class="swatch" id="swatch-background"></span>
+        <label for="theme-input-background">Page Background</label>
+        <input type="text" id="theme-input-background" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+      <div class="color-row">
+        <span class="swatch" id="swatch-surface"></span>
+        <label for="theme-input-surface">Cards &amp; Surfaces</label>
+        <input type="text" id="theme-input-surface" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+      <div class="color-row">
+        <span class="swatch" id="swatch-border"></span>
+        <label for="theme-input-border">Borders</label>
+        <input type="text" id="theme-input-border" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+      <div class="color-row">
+        <span class="swatch" id="swatch-accent"></span>
+        <label for="theme-input-accent">Accent</label>
+        <input type="text" id="theme-input-accent" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+      <div class="theme-actions">
+        <button id="theme-reset-btn" class="btn-ghost">Reset</button>
+        <button id="theme-apply-btn" class="btn-apply" disabled>Apply</button>
+      </div>
+    </div>
+  </div>
+
   <main id="course-list"></main>
 
   <div id="empty-state" hidden>

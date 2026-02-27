@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BetterSpace Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <header>
+    <h1>BetterSpace</h1>
+    <p class="subtitle">Theme Settings</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Theme Colors</h2>
+      <p class="section-desc">Applied when Dark Mode is enabled. Changes take effect immediately on any open Brightspace tab.</p>
+
+      <div class="color-row" id="row-background">
+        <span class="swatch" id="swatch-background"></span>
+        <div class="color-info">
+          <label for="input-background">Page Background</label>
+          <small>Main background color of the whole page</small>
+        </div>
+        <input type="text" id="input-background" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+
+      <div class="color-row" id="row-surface">
+        <span class="swatch" id="swatch-surface"></span>
+        <div class="color-info">
+          <label for="input-surface">Cards &amp; Surfaces</label>
+          <small>Course cards, panels, dropdowns, form fields</small>
+        </div>
+        <input type="text" id="input-surface" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+
+      <div class="color-row" id="row-border">
+        <span class="swatch" id="swatch-border"></span>
+        <div class="color-info">
+          <label for="input-border">Borders</label>
+          <small>Dividers, card outlines, input borders</small>
+        </div>
+        <input type="text" id="input-border" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+
+      <div class="color-row" id="row-accent">
+        <span class="swatch" id="swatch-accent"></span>
+        <div class="color-info">
+          <label for="input-accent">Accent</label>
+          <small>Links, buttons, interactive highlights</small>
+        </div>
+        <input type="text" id="input-accent" class="hex-input" maxlength="7" spellcheck="false" />
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <button id="reset-btn" class="btn-secondary">Reset to defaults</button>
+    <button id="save-btn" class="btn-primary" disabled>Save</button>
+  </footer>
+
+  <script src="options.js"></script>
+</body>
+</html>
