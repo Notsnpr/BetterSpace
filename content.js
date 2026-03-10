@@ -4,6 +4,7 @@
   const isFrame = window !== window.top;
 
   let savedNames = {};
+  let savedImages = {};
   let debounceTimer = null;
   let isDarkMode = false;
   const observedRoots = new WeakSet();
@@ -16,10 +17,48 @@
     savedNames = Object.fromEntries(
       Object.entries(result).filter(([k]) => /^\d+$/.test(k))
     );
+    savedImages = result.cardImages || {};
   }
 
   // ── Shadow DOM traversal ─────────────────────────────────────────────────────
   // Brightspace nests components ~5 shadow roots deep, so we recurse.
+
+  // Resolves with an element's shadow root once it's ready.
+  //
+  // The two-step wait handles Brightspace's lazy-loaded Lit components:
+  //   1. customElements.whenDefined — fires when the class is registered and
+  //      the element is upgraded (gains LitElement prototype + updateComplete).
+  //   2. updateComplete — fires after Lit's first render, when shadowRoot exists.
+  //
+  // Without step 1, el.updateComplete is undefined on a not-yet-upgraded element
+  // and we'd silently give up; without step 2, shadowRoot may still be null even
+  // after the class is defined because Lit renders asynchronously.
+  function waitForShadow(el) {
+    if (el.shadowRoot) return Promise.resolve(el.shadowRoot);
+    return customElements.whenDefined(el.localName).then(() => {
+      if (el.shadowRoot) return el.shadowRoot;
+      const up = el.updateComplete;
+      if (up && typeof up.then === 'function') {
+        return up.then(() => el.shadowRoot || null);
+      }
+      return el.shadowRoot || null;
+    });
+  }
+
+  // Inject a CSSStyleSheet into an element's shadow root, waiting for it if needed.
+  function injectSheet(el, sheet) {
+    if (el.shadowRoot) {
+      if (!el.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+        el.shadowRoot.adoptedStyleSheets = [...el.shadowRoot.adoptedStyleSheets, sheet];
+      }
+      return;
+    }
+    waitForShadow(el).then((sr) => {
+      if (sr && isDarkMode && !sr.adoptedStyleSheets.includes(sheet)) {
+        sr.adoptedStyleSheets = [...sr.adoptedStyleSheets, sheet];
+      }
+    });
+  }
 
   function queryShadowAll(selector, root) {
     const results = [...root.querySelectorAll(selector)];
@@ -91,6 +130,8 @@
       applyAllCardDarkMode();
       applyPopoverDarkMode();
     }
+
+    applyCardImages(elements);
   }
 
   // ── Course list for popup ────────────────────────────────────────────────────
@@ -216,23 +257,9 @@
     return bsGenericCardSheet;
   }
 
-  function applyAllCardDarkMode(retryCount = 0) {
+  function applyAllCardDarkMode() {
     const sheet = getBsGenericCardSheet();
-    let hasPending = false;
-    queryShadowAll('d2l-card', document.body).forEach((card) => {
-      if (card.shadowRoot) {
-        if (!card.shadowRoot.adoptedStyleSheets.includes(sheet)) {
-          card.shadowRoot.adoptedStyleSheets = [...card.shadowRoot.adoptedStyleSheets, sheet];
-        }
-      } else {
-        // d2l-card is in the DOM but Lit hasn't rendered its shadow yet
-        hasPending = true;
-      }
-    });
-    // Keep retrying until all found cards have rendered their shadows
-    if (hasPending && retryCount < 8) {
-      setTimeout(() => applyAllCardDarkMode(retryCount + 1), 250);
-    }
+    queryShadowAll('d2l-card', document.body).forEach((card) => injectSheet(card, sheet));
   }
 
   function removeAllCardDarkMode() {
@@ -241,6 +268,55 @@
       if (card.shadowRoot) {
         card.shadowRoot.adoptedStyleSheets =
           card.shadowRoot.adoptedStyleSheets.filter((s) => s !== bsGenericCardSheet);
+      }
+    });
+  }
+
+  // ── Card background images ────────────────────────────────────────────────────
+  //
+  // Sets a CSS custom property --bs-card-image on d2l-card (host) and injects
+  // a sheet that applies it as background-image. The sheet is only added to cards
+  // that have a custom image, so cards without one are completely unaffected.
+  // The sheet is applied after bsCardSheet so its background-image !important wins.
+
+  let bsCardImageSheet = null;
+
+  function getBsCardImageSheet() {
+    if (bsCardImageSheet) return bsCardImageSheet;
+    bsCardImageSheet = new CSSStyleSheet();
+    bsCardImageSheet.replaceSync(`
+      :host {
+        background-image: var(--bs-card-image) !important;
+        background-size: cover !important;
+        background-position: center !important;
+      }
+      :host::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        pointer-events: none;
+        z-index: 0;
+      }
+    `);
+    return bsCardImageSheet;
+  }
+
+  function applyCardImages(elements) {
+    const sheet = getBsCardImageSheet();
+    elements.forEach(({ id, dCard }) => {
+      const url = savedImages[id];
+      if (url) {
+        dCard.style.setProperty('--bs-card-image', `url('${url}')`);
+        if (dCard.shadowRoot && !dCard.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+          dCard.shadowRoot.adoptedStyleSheets = [...dCard.shadowRoot.adoptedStyleSheets, sheet];
+        }
+      } else {
+        dCard.style.removeProperty('--bs-card-image');
+        if (dCard.shadowRoot) {
+          dCard.shadowRoot.adoptedStyleSheets =
+            dCard.shadowRoot.adoptedStyleSheets.filter((s) => s !== sheet);
+        }
       }
     });
   }
@@ -292,11 +368,7 @@
 
   function applyAllInputDarkMode() {
     const sheet = getBsInputSheet();
-    queryShadowAll(INPUT_TAGS, document.body).forEach((el) => {
-      if (el.shadowRoot && !el.shadowRoot.adoptedStyleSheets.includes(sheet)) {
-        el.shadowRoot.adoptedStyleSheets = [...el.shadowRoot.adoptedStyleSheets, sheet];
-      }
-    });
+    queryShadowAll(INPUT_TAGS, document.body).forEach((el) => injectSheet(el, sheet));
   }
 
   function removeAllInputDarkMode() {
@@ -311,11 +383,7 @@
 
   function applyPopoverDarkMode() {
     const sheet = getBsPopoverSheet();
-    queryShadowAll(POPOVER_TAGS, document.body).forEach((el) => {
-      if (el.shadowRoot && !el.shadowRoot.adoptedStyleSheets.includes(sheet)) {
-        el.shadowRoot.adoptedStyleSheets = [...el.shadowRoot.adoptedStyleSheets, sheet];
-      }
-    });
+    queryShadowAll(POPOVER_TAGS, document.body).forEach((el) => injectSheet(el, sheet));
   }
 
   function removePopoverDarkMode() {
@@ -876,6 +944,11 @@
       injectDarkModeStyles(message.colors);
       sendResponse({ ok: true });
     }
+    if (!isFrame && message.type === 'APPLY_IMAGES') {
+      savedImages = message.images;
+      applyCardImages(findCourseElements());
+      sendResponse({ ok: true });
+    }
   });
 
   // ── Recursive MutationObserver ───────────────────────────────────────────────
@@ -897,19 +970,19 @@
           if (node.shadowRoot) {
             observeRoot(node.shadowRoot);
           }
-          // Lit components attach their shadowRoot asynchronously after being
-          // added to the DOM. Retry a short time later so we don't miss them.
+          // Lit components attach their shadowRoot asynchronously. Wait for
+          // updateComplete so we inject exactly when the shadow root is ready.
           if (node.tagName && node.tagName.includes('-')) {
-            setTimeout(() => {
-              if (node.shadowRoot) {
-                observeRoot(node.shadowRoot);
-                if (isDarkMode) {
-                  applyAllCardDarkMode();
-                  applyPopoverDarkMode();
-                  applyAllInputDarkMode();
-                }
+            waitForShadow(node).then((sr) => {
+              if (!sr) return;
+              observeRoot(sr);
+              if (isDarkMode) {
+                applyAllCardDarkMode();
+                applyPopoverDarkMode();
+                applyAllInputDarkMode();
               }
-            }, 300);
+              applyCardImages(findCourseElements());
+            });
           }
         }
       }
@@ -931,13 +1004,6 @@
       await loadSavedNames();
       observeRoot(document.body);
       applyAllNames();
-    }
-
-    // Extra passes to catch Lit components that render their shadow roots
-    // asynchronously after the initial run.
-    if (stored.darkMode) {
-      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); applyAllInputDarkMode(); }, 600);
-      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); applyAllInputDarkMode(); }, 2000);
     }
   }
 

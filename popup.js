@@ -8,6 +8,8 @@
   const darkToggle   = document.getElementById('dark-mode-toggle');
 
   const pendingEdits = {};
+  const pendingImageEdits = {};
+  let savedImages = {};
   let currentTab = null;
 
   const DEFAULT_THEME = {
@@ -66,8 +68,35 @@
         saveBtn.disabled = false;
       });
 
+      const imageRow = document.createElement('div');
+      imageRow.className = 'image-row';
+
+      const imageInput = document.createElement('input');
+      imageInput.type = 'text';
+      imageInput.className = 'image-url-input';
+      imageInput.placeholder = 'Background image URL…';
+      imageInput.value = savedImages[id] || '';
+      imageInput.addEventListener('input', () => {
+        pendingImageEdits[id] = imageInput.value.trim();
+        saveBtn.disabled = false;
+      });
+
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'image-clear-btn';
+      clearBtn.textContent = '✕';
+      clearBtn.title = 'Clear image';
+      clearBtn.addEventListener('click', () => {
+        imageInput.value = '';
+        pendingImageEdits[id] = '';
+        saveBtn.disabled = false;
+      });
+
+      imageRow.appendChild(imageInput);
+      imageRow.appendChild(clearBtn);
+
       row.appendChild(label);
       row.appendChild(input);
+      row.appendChild(imageRow);
       fragment.appendChild(row);
     });
 
@@ -86,6 +115,14 @@
       }
     }
 
+    // Merge image edits
+    const existingImages = { ...(existing.cardImages || {}) };
+    for (const [id, url] of Object.entries(pendingImageEdits)) {
+      if (url === '') delete existingImages[id];
+      else existingImages[id] = url;
+    }
+    allNames.cardImages = existingImages;
+
     await chrome.storage.local.set(allNames);
 
     const courseNames = Object.fromEntries(
@@ -96,8 +133,14 @@
       await sendToContentScript(tab, { type: 'APPLY_NAMES', names: courseNames });
     } catch { /* persisted, applies on next reload */ }
 
+    try {
+      await sendToContentScript(tab, { type: 'APPLY_IMAGES', images: existingImages });
+    } catch { /* persisted, applies on next reload */ }
+
+    savedImages = existingImages;
     saveBtn.disabled = true;
     Object.keys(pendingEdits).forEach((k) => delete pendingEdits[k]);
+    Object.keys(pendingImageEdits).forEach((k) => delete pendingImageEdits[k]);
   }
 
   // ── Dark mode toggle ─────────────────────────────────────────────────────────
@@ -206,6 +249,9 @@
   async function init() {
     initDarkMode();
     initTheme();
+
+    const { cardImages } = await chrome.storage.local.get('cardImages');
+    savedImages = cardImages || {};
 
     let tab;
     try {

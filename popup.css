@@ -347,6 +347,55 @@ main#course-list::-webkit-scrollbar-thumb {
   box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.08);
 }
 
+/* ── Card image row ──────────────────────────────────────────────── */
+
+.image-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.image-url-input {
+  flex: 1;
+  padding: 5px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.1s, box-shadow 0.1s;
+  min-width: 0;
+}
+
+.image-url-input::placeholder {
+  color: var(--text-muted);
+}
+
+.image-url-input:focus {
+  border-color: rgba(79, 172, 254, 0.5);
+  box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.08);
+}
+
+.image-clear-btn {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.image-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text);
+}
+
 /* ── Empty / Error states ────────────────────────────────────────── */
 
 #empty-state,
