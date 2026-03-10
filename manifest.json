@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Rename Brightspace course cards to friendly titles.",
 
-  "permissions": ["storage", "activeTab", "scripting", "tabs"],
+  "permissions": ["storage", "activeTab", "tabs"],
   "host_permissions": ["*://*.brightspace.com/*", "*://brightspace.utrgv.edu/*"],
 
   "action": {
