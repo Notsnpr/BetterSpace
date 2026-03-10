@@ -256,12 +256,58 @@
       :host {
         --d2l-popover-default-background-color: var(--d2l-color-white, #1e1e1e);
         --d2l-popover-default-border-color: var(--d2l-color-gypsum, #2d2d2d);
+        --d2l-menu-background-color: var(--d2l-color-white, #1e1e1e);
+        --d2l-menu-border-color: var(--d2l-color-gypsum, #2d2d2d);
+        color: #e8e8e8;
       }
     `);
     return bsPopoverSheet;
   }
 
   const POPOVER_TAGS = 'd2l-dropdown-content, d2l-dropdown-menu, d2l-dialog, d2l-tooltip';
+
+  // Input search/text dark mode — d2l-input-search and d2l-input-text hardcode their
+  // background in adoptedStyleSheets so token overrides on :root don't reach them.
+  let bsInputSheet = null;
+  function getBsInputSheet() {
+    if (bsInputSheet) return bsInputSheet;
+    bsInputSheet = new CSSStyleSheet();
+    bsInputSheet.replaceSync(`
+      :host {
+        --d2l-input-background-color: var(--d2l-color-white, #1e1e1e);
+        --d2l-input-border-color: var(--d2l-color-gypsum, #2d2d2d);
+        --d2l-input-text-color: #e8e8e8;
+        --d2l-input-placeholder-color: #888;
+      }
+      .d2l-input {
+        background-color: var(--d2l-color-white, #1e1e1e) !important;
+        color: #e8e8e8 !important;
+        border-color: var(--d2l-color-gypsum, #2d2d2d) !important;
+      }
+    `);
+    return bsInputSheet;
+  }
+
+  const INPUT_TAGS = 'd2l-input-search, d2l-input-text, d2l-input-search-with-selection';
+
+  function applyAllInputDarkMode() {
+    const sheet = getBsInputSheet();
+    queryShadowAll(INPUT_TAGS, document.body).forEach((el) => {
+      if (el.shadowRoot && !el.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+        el.shadowRoot.adoptedStyleSheets = [...el.shadowRoot.adoptedStyleSheets, sheet];
+      }
+    });
+  }
+
+  function removeAllInputDarkMode() {
+    if (!bsInputSheet) return;
+    queryShadowAll(INPUT_TAGS, document.body).forEach((el) => {
+      if (el.shadowRoot) {
+        el.shadowRoot.adoptedStyleSheets =
+          el.shadowRoot.adoptedStyleSheets.filter((s) => s !== bsInputSheet);
+      }
+    });
+  }
 
   function applyPopoverDarkMode() {
     const sheet = getBsPopoverSheet();
@@ -642,6 +688,26 @@
         border-color: ${c.border} !important;
       }
 
+      /* ── Pulse app promo banner ──────────────────────────────────────────────── */
+      html.bs-dark-mode .d2l-pulseapp-banner-new {
+        background-color: ${c.surface} !important;
+        border-color: ${c.border} !important;
+      }
+      html.bs-dark-mode .d2l-pulseapp-banner-new * {
+        color: #e8e8e8 !important;
+      }
+
+      /* ── ReadSpeaker "Listen" widget ─────────────────────────────────────────── */
+      html.bs-dark-mode .rsbtn,
+      html.bs-dark-mode .rsbtn_tooltoggle,
+      html.bs-dark-mode a.rsbtn_play,
+      html.bs-dark-mode .rsbtn_exp,
+      html.bs-dark-mode .rswidget {
+        background-color: ${c.surface} !important;
+        color: #e8e8e8 !important;
+        border-color: ${c.border} !important;
+      }
+
       /* ── Smart-curriculum content viewer (iframe: /d2l/le/lessons/) ─────────── */
       /* This iframe has its own DOM with no shadow roots; target its classes directly */
       html.bs-dark-mode body,
@@ -722,10 +788,12 @@
       applyCardEnhancements(elements);
       applyAllCardDarkMode();
       applyPopoverDarkMode();
+      applyAllInputDarkMode();
     } else {
       removeCardEnhancements(elements);
       removeAllCardDarkMode();
       removePopoverDarkMode();
+      removeAllInputDarkMode();
     }
   }
 
@@ -796,6 +864,7 @@
                 if (isDarkMode) {
                   applyAllCardDarkMode();
                   applyPopoverDarkMode();
+                  applyAllInputDarkMode();
                 }
               }
             }, 300);
@@ -825,8 +894,8 @@
     // Extra passes to catch Lit components that render their shadow roots
     // asynchronously after the initial run.
     if (stored.darkMode) {
-      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); }, 600);
-      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); }, 2000);
+      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); applyAllInputDarkMode(); }, 600);
+      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); applyAllInputDarkMode(); }, 2000);
     }
   }
 
