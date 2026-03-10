@@ -21,7 +21,8 @@
     {
       "matches": ["*://*.brightspace.com/*", "*://brightspace.utrgv.edu/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
 

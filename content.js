@@ -1,6 +1,8 @@
 (function () {
   'use strict';
 
+  const isFrame = window !== window.top;
+
   let savedNames = {};
   let debounceTimer = null;
   let isDarkMode = false;
@@ -84,7 +86,11 @@
       }
     });
 
-    if (isDarkMode) applyCardEnhancements(elements);
+    if (isDarkMode) {
+      applyCardEnhancements(elements);
+      applyAllCardDarkMode();
+      applyPopoverDarkMode();
+    }
   }
 
   // ── Course list for popup ────────────────────────────────────────────────────
@@ -187,6 +193,83 @@
       }
     `);
     return bsCardSheet;
+  }
+
+  // Generic dark bg override for ALL d2l-card elements (not just enrollment cards).
+  // d2l-card's own adoptedStyleSheet hardcodes background-color: rgb(255,255,255),
+  // so CSS variable overrides on :root don't reach it — we must inject our own sheet.
+  let bsGenericCardSheet = null;
+  function getBsGenericCardSheet() {
+    if (bsGenericCardSheet) return bsGenericCardSheet;
+    bsGenericCardSheet = new CSSStyleSheet();
+    bsGenericCardSheet.replaceSync(`
+      :host {
+        background-color: var(--d2l-color-white, #1e1e1e) !important;
+        border-color: var(--d2l-color-gypsum, #2d2d2d) !important;
+        color: #e8e8e8 !important;
+      }
+      *,
+      ::slotted(*) {
+        color: inherit !important;
+      }
+    `);
+    return bsGenericCardSheet;
+  }
+
+  function applyAllCardDarkMode() {
+    const sheet = getBsGenericCardSheet();
+    queryShadowAll('d2l-card', document.body).forEach((card) => {
+      if (card.shadowRoot && !card.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+        card.shadowRoot.adoptedStyleSheets = [...card.shadowRoot.adoptedStyleSheets, sheet];
+      }
+    });
+  }
+
+  function removeAllCardDarkMode() {
+    if (!bsGenericCardSheet) return;
+    queryShadowAll('d2l-card', document.body).forEach((card) => {
+      if (card.shadowRoot) {
+        card.shadowRoot.adoptedStyleSheets =
+          card.shadowRoot.adoptedStyleSheets.filter((s) => s !== bsGenericCardSheet);
+      }
+    });
+  }
+
+  // Popover/dropdown dark mode — d2l-dropdown-content, d2l-dropdown-menu, d2l-dialog
+  // all define --d2l-popover-default-background-color: #ffffff inside their shadow :host,
+  // which shadows our :root overrides. Inject our own sheet to fix it.
+  let bsPopoverSheet = null;
+  function getBsPopoverSheet() {
+    if (bsPopoverSheet) return bsPopoverSheet;
+    bsPopoverSheet = new CSSStyleSheet();
+    bsPopoverSheet.replaceSync(`
+      :host {
+        --d2l-popover-default-background-color: var(--d2l-color-white, #1e1e1e);
+        --d2l-popover-default-border-color: var(--d2l-color-gypsum, #2d2d2d);
+      }
+    `);
+    return bsPopoverSheet;
+  }
+
+  const POPOVER_TAGS = 'd2l-dropdown-content, d2l-dropdown-menu, d2l-dialog, d2l-tooltip';
+
+  function applyPopoverDarkMode() {
+    const sheet = getBsPopoverSheet();
+    queryShadowAll(POPOVER_TAGS, document.body).forEach((el) => {
+      if (el.shadowRoot && !el.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+        el.shadowRoot.adoptedStyleSheets = [...el.shadowRoot.adoptedStyleSheets, sheet];
+      }
+    });
+  }
+
+  function removePopoverDarkMode() {
+    if (!bsPopoverSheet) return;
+    queryShadowAll(POPOVER_TAGS, document.body).forEach((el) => {
+      if (el.shadowRoot) {
+        el.shadowRoot.adoptedStyleSheets =
+          el.shadowRoot.adoptedStyleSheets.filter((s) => s !== bsPopoverSheet);
+      }
+    });
   }
 
   function applyCardEnhancements(elements) {
@@ -548,6 +631,65 @@
         color: #e8e8e8 !important;
         border-color: ${c.border} !important;
       }
+
+      /* ── Smart-curriculum content viewer (iframe: /d2l/le/lessons/) ─────────── */
+      /* This iframe has its own DOM with no shadow roots; target its classes directly */
+      html.bs-dark-mode body,
+      html.bs-dark-mode .navigation-panel,
+      html.bs-dark-mode .navigation-search,
+      html.bs-dark-mode .panel-overlay,
+      html.bs-dark-mode .new-content-alert,
+      html.bs-dark-mode .module-overview {
+        background-color: ${c.surface} !important;
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode .unit-box {
+        background-color: ${c.surface} !important;
+        color: #e8e8e8 !important;
+        border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode .unit-box.selected {
+        background-color: var(--bs-surface-2, ${c.surface}) !important;
+        border-left-color: ${c.accent} !important;
+      }
+
+      html.bs-dark-mode .unit-box:hover {
+        background-color: var(--bs-surface-2, ${c.surface}) !important;
+      }
+
+      html.bs-dark-mode .unit-box *,
+      html.bs-dark-mode .unit-box a {
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode h1,
+      html.bs-dark-mode h2,
+      html.bs-dark-mode h3,
+      html.bs-dark-mode h4 {
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode .navigation-search input {
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode .navigation-search input {
+        background-color: ${c.background} !important;
+        border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode .module-description,
+      html.bs-dark-mode .content-container,
+      html.bs-dark-mode .d2l-collapsible-panel {
+        background-color: ${c.background} !important;
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode .accent.theme-background {
+        filter: brightness(0.7) !important;
+      }
     `;
   }
 
@@ -564,12 +706,16 @@
   function applyDarkMode(enabled) {
     isDarkMode = enabled;
     document.documentElement.classList.toggle('bs-dark-mode', enabled);
-    applyHeaderLogoSwap(enabled);
-    const elements = findCourseElements();
+    if (!isFrame) applyHeaderLogoSwap(enabled);
+    const elements = isFrame ? [] : findCourseElements();
     if (enabled) {
       applyCardEnhancements(elements);
+      applyAllCardDarkMode();
+      applyPopoverDarkMode();
     } else {
       removeCardEnhancements(elements);
+      removeAllCardDarkMode();
+      removePopoverDarkMode();
     }
   }
 
@@ -592,13 +738,15 @@
   // ── Messages ─────────────────────────────────────────────────────────────────
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'GET_COURSES') {
-      sendResponse({ courses: buildCourseList() });
-    }
-    if (message.type === 'APPLY_NAMES') {
-      savedNames = message.names;
-      applyAllNames();
-      sendResponse({ ok: true });
+    if (!isFrame) {
+      if (message.type === 'GET_COURSES') {
+        sendResponse({ courses: buildCourseList() });
+      }
+      if (message.type === 'APPLY_NAMES') {
+        savedNames = message.names;
+        applyAllNames();
+        sendResponse({ ok: true });
+      }
     }
     if (message.type === 'SET_DARK_MODE') {
       applyDarkMode(message.enabled);
@@ -625,8 +773,22 @@
     new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
-          if (node.nodeType === Node.ELEMENT_NODE && node.shadowRoot) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          if (node.shadowRoot) {
             observeRoot(node.shadowRoot);
+          }
+          // Lit components attach their shadowRoot asynchronously after being
+          // added to the DOM. Retry a short time later so we don't miss them.
+          if (node.tagName && node.tagName.includes('-')) {
+            setTimeout(() => {
+              if (node.shadowRoot) {
+                observeRoot(node.shadowRoot);
+                if (isDarkMode) {
+                  applyAllCardDarkMode();
+                  applyPopoverDarkMode();
+                }
+              }
+            }, 300);
           }
         }
       }
@@ -644,9 +806,18 @@
     injectDarkModeStyles(stored.themeColors || {});
     applyDarkMode(!!stored.darkMode);
 
-    await loadSavedNames();
-    observeRoot(document.body);
-    applyAllNames();
+    if (!isFrame) {
+      await loadSavedNames();
+      observeRoot(document.body);
+      applyAllNames();
+    }
+
+    // Extra passes to catch Lit components that render their shadow roots
+    // asynchronously after the initial run.
+    if (stored.darkMode) {
+      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); }, 600);
+      setTimeout(() => { applyAllCardDarkMode(); applyPopoverDarkMode(); }, 2000);
+    }
   }
 
   init();
