@@ -264,7 +264,7 @@
     return bsPopoverSheet;
   }
 
-  const POPOVER_TAGS = 'd2l-dropdown-content, d2l-dropdown-menu, d2l-dialog, d2l-tooltip';
+  const POPOVER_TAGS = 'd2l-dropdown-content, d2l-dropdown-menu, d2l-dialog, d2l-tooltip, d2l-menu, d2l-menu-item-link';
 
   // Input search/text dark mode — d2l-input-search and d2l-input-text hardcode their
   // background in adoptedStyleSheets so token overrides on :root don't reach them.
@@ -436,6 +436,18 @@
         --d2l-focus-box-shadow: 0 0 0 3px color-mix(in srgb, ${c.accent} 35%, transparent);
         /* Overlays */
         --d2l-color-overlay: rgba(0, 0, 0, 0.65);
+        /* Popovers/dropdowns — set primary var (not just -default-) so CSS inheritance
+           bypasses each component's shadow :host hardcoding of the default value */
+        --d2l-popover-background-color: ${c.surface};
+        --d2l-popover-border-color: ${c.border};
+        --d2l-popover-foreground-color: #e8e8e8;
+        --d2l-popover-shadow-color: rgba(0, 0, 0, 0.5);
+        /* Menu items */
+        --d2l-menu-background-color: ${c.surface};
+        --d2l-menu-foreground-color: #e8e8e8;
+        /* Tables — d2l-table-wrapper :host uses var(--d2l-color-regolith) for the header
+           background, which we already override above; controls backdrop defaults to white */
+        --d2l-table-controls-background-color: ${c.surface};
       }
 
       /* ── Navigation ──────────────────────────────────────────────────────────── */
@@ -635,15 +647,45 @@
       }
 
       html.bs-dark-mode th,
-      html.bs-dark-mode td,
+      html.bs-dark-mode td {
+        color: #e8e8e8 !important;
+        border-color: ${c.border} !important;
+      }
+
       html.bs-dark-mode .d2l-table-row,
       html.bs-dark-mode .d2l-table-cell {
         border-color: ${c.border} !important;
       }
 
-      html.bs-dark-mode tr:hover,
+      html.bs-dark-mode tr:hover td,
+      html.bs-dark-mode tr:hover th,
       html.bs-dark-mode .d2l-table-row:hover {
         background-color: var(--bs-surface-2) !important;
+      }
+
+      /* ── Legacy D2L page UI elements (Assignments, Quizzes, Grades, etc.) ──── */
+      /* Main content wrapper on legacy pages */
+      html.bs-dark-mode #d2l_content,
+      html.bs-dark-mode .d2l-page-main-padding {
+        background-color: ${c.background} !important;
+      }
+
+      /* Toolbar / action bars */
+      html.bs-dark-mode .d_t,
+      html.bs-dark-mode .d_tp,
+      html.bs-dark-mode .d2l-toolbar {
+        background-color: ${c.surface} !important;
+        border-color: ${c.border} !important;
+        color: #e8e8e8 !important;
+      }
+
+      /* Generic legacy page buttons */
+      html.bs-dark-mode .d2l-grid-container button,
+      html.bs-dark-mode .d_ic button,
+      html.bs-dark-mode .dco button {
+        background-color: var(--bs-surface-2) !important;
+        color: #e8e8e8 !important;
+        border-color: ${c.border} !important;
       }
 
       /* ── Inputs in light DOM contexts ───────────────────────────────────────── */
