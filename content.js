@@ -216,13 +216,23 @@
     return bsGenericCardSheet;
   }
 
-  function applyAllCardDarkMode() {
+  function applyAllCardDarkMode(retryCount = 0) {
     const sheet = getBsGenericCardSheet();
+    let hasPending = false;
     queryShadowAll('d2l-card', document.body).forEach((card) => {
-      if (card.shadowRoot && !card.shadowRoot.adoptedStyleSheets.includes(sheet)) {
-        card.shadowRoot.adoptedStyleSheets = [...card.shadowRoot.adoptedStyleSheets, sheet];
+      if (card.shadowRoot) {
+        if (!card.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+          card.shadowRoot.adoptedStyleSheets = [...card.shadowRoot.adoptedStyleSheets, sheet];
+        }
+      } else {
+        // d2l-card is in the DOM but Lit hasn't rendered its shadow yet
+        hasPending = true;
       }
     });
+    // Keep retrying until all found cards have rendered their shadows
+    if (hasPending && retryCount < 8) {
+      setTimeout(() => applyAllCardDarkMode(retryCount + 1), 250);
+    }
   }
 
   function removeAllCardDarkMode() {
