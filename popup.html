@@ -4,12 +4,18 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BetterSpace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Wix+Madefor+Text:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
   <header>
     <div class="header-top">
-      <h1>BetterSpace</h1>
+      <div class="header-brand">
+        <img src="icons/BetterSpaceExtension.png" class="header-logo" alt="" />
+        <h1>BetterSpace</h1>
+      </div>
       <label class="toggle-switch" title="Toggle dark mode">
         <input type="checkbox" id="dark-mode-toggle" />
         <span class="toggle-slider"></span>
@@ -22,7 +28,8 @@
   <!-- Collapsible theme panel -->
   <div id="theme-panel">
     <button id="theme-toggle" class="theme-toggle-btn">
-      Theme <span id="theme-arrow">&#9658;</span>
+      <span>Theme Colors</span>
+      <span id="theme-arrow">&#9658;</span>
     </button>
     <div id="theme-content" hidden>
       <div class="color-row">
@@ -42,7 +49,7 @@
       </div>
       <div class="color-row">
         <span class="swatch" id="swatch-accent"></span>
-        <label for="theme-input-accent">Accent</label>
+        <label for="theme-input-accent">Accent Color</label>
         <input type="text" id="theme-input-accent" class="hex-input" maxlength="7" spellcheck="false" />
       </div>
       <div class="theme-actions">
@@ -65,7 +72,7 @@
   </div>
 
   <footer>
-    <button id="save-btn" disabled>Save</button>
+    <button id="save-btn" disabled>Save Names</button>
   </footer>
 
   <script src="popup.js"></script>
