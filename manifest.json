@@ -9,6 +9,11 @@
 
   "action": {
     "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/BetterSpaceExtension.png",
+      "48": "icons/BetterSpaceExtension.png",
+      "128": "icons/BetterSpaceExtension.png"
+    },
     "default_title": "BetterSpace"
   },
 
@@ -21,8 +26,15 @@
   ],
 
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  }
+    "16": "icons/BetterSpaceExtension.png",
+    "48": "icons/BetterSpaceExtension.png",
+    "128": "icons/BetterSpaceExtension.png"
+  },
+
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/BetterSpaceLetterLogo.png"],
+      "matches": ["*://*.brightspace.com/*", "*://brightspace.utrgv.edu/*"]
+    }
+  ]
 }

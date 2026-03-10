@@ -5,6 +5,7 @@
   let debounceTimer = null;
   let isDarkMode = false;
   const observedRoots = new WeakSet();
+  const originalHeaderLogoSrc = new WeakMap();
 
   // ── Storage ──────────────────────────────────────────────────────────────────
 
@@ -129,11 +130,21 @@
     bsCardSheet.replaceSync(`
       :host {
         position: relative !important;
+        background: var(--bs-surface-2, #1e1e1e) !important;
+        color: #e8e8e8 !important;
         border-radius: 14px !important;
         overflow: hidden !important;
-        box-shadow: 0 2px 14px rgba(0, 0, 0, 0.4) !important;
+        box-shadow: 0 2px 14px rgba(0, 0, 0, 0.55) !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease !important;
         display: block !important;
+      }
+
+      :host([selected]),
+      :host(:focus-within) {
+        outline: none !important;
+        box-shadow:
+          0 2px 14px rgba(0, 0, 0, 0.55),
+          0 0 0 3px color-mix(in srgb, var(--bs-accent-hover, #4d9de0) 35%, transparent) !important;
       }
 
       /* Gradient accent stripe along the top of each card */
@@ -154,6 +165,16 @@
         box-shadow:
           0 8px 30px rgba(0, 0, 0, 0.55),
           0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+      }
+
+      /* Common internal containers */
+      *,
+      ::slotted(*) {
+        color: inherit;
+      }
+
+      a {
+        color: var(--d2l-link-color, var(--bs-accent-hover, #4d9de0)) !important;
       }
 
       /* If Brightspace passes a header image/thumbnail as slotted content,
@@ -206,6 +227,14 @@
   function buildDarkModeCSS(colors) {
     const c = { ...DEFAULT_THEME, ...colors };
     return `
+      :root {
+        --bs-accent-hover: color-mix(in srgb, ${c.accent} 70%, #ffffff);
+        --bs-muted-text: color-mix(in srgb, #ffffff 72%, ${c.background});
+        --bs-muted-text-2: color-mix(in srgb, #ffffff 55%, ${c.background});
+        --bs-surface-2: color-mix(in srgb, ${c.surface} 78%, ${c.background});
+        --bs-surface-3: color-mix(in srgb, ${c.surface} 62%, ${c.background});
+      }
+
       /* ── Body & page structure ───────────────────────────────────────────────── */
       html.bs-dark-mode,
       html.bs-dark-mode body {
@@ -231,21 +260,27 @@
         --d2l-color-white: ${c.surface};
         --d2l-color-sylvite: ${c.background};
         --d2l-color-regolith: ${c.background};
+        --d2l-color-onyx: ${c.surface};
         /* Borders */
         --d2l-color-gypsum: ${c.border};
         --d2l-color-mica: ${c.border};
         --d2l-color-corundum: ${c.border};
+        --d2l-color-chromite: color-mix(in srgb, ${c.border} 70%, #000000);
         /* Text (fixed — not user-customizable) */
         --d2l-color-ferrite: #e8e8e8;
-        --d2l-color-galena: #b8b8b8;
-        --d2l-color-tungsten: #969696;
-        --d2l-color-titanium: #707070;
+        --d2l-color-galena: var(--bs-muted-text);
+        --d2l-color-tungsten: var(--bs-muted-text-2);
+        --d2l-color-titanium: color-mix(in srgb, #ffffff 40%, ${c.background});
+        --d2l-color-black: ${c.background};
         /* Accent */
         --d2l-color-celestine: ${c.accent};
-        --d2l-color-celestine-plus-1: ${c.accent};
+        --d2l-color-celestine-plus-1: var(--bs-accent-hover);
         --d2l-color-celestine-minus-1: ${c.accent};
         --d2l-color-celestine-plus-2: ${c.background};
         --d2l-color-primary-accent-action: ${c.accent};
+        --d2l-color-primary-accent-indicator: ${c.accent};
+        --d2l-link-color: ${c.accent};
+        --d2l-link-color-hover: var(--bs-accent-hover);
         /* Status (fixed) */
         --d2l-color-feedback-error: #ff6b6b;
         --d2l-color-feedback-warning: #ffb84d;
@@ -256,16 +291,39 @@
         --d2l-input-background-color: ${c.surface};
         --d2l-input-border-color: ${c.border};
         --d2l-input-text-color: #e8e8e8;
+        --d2l-input-placeholder-color: var(--bs-muted-text-2);
+        /* Focus rings */
+        --d2l-focus-color: ${c.accent};
+        --d2l-focus-box-shadow: 0 0 0 3px color-mix(in srgb, ${c.accent} 35%, transparent);
+        /* Overlays */
+        --d2l-color-overlay: rgba(0, 0, 0, 0.65);
       }
 
       /* ── Navigation ──────────────────────────────────────────────────────────── */
       /* Secondary nav band — UTRGV hardcodes background-color: #4C4A4F here */
       html.bs-dark-mode .d2l-branding-navigation-background-color {
-        background-color: #18181c !important;
+        background-color: var(--bs-surface-2) !important;
       }
 
       html.bs-dark-mode .d2l-navigation-s {
+        background-color: ${c.surface} !important;
         border-bottom-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode .d2l-navigation-s-main-wrapper,
+      html.bs-dark-mode .d2l-navigation-s-linkarea-has-color {
+        background-color: ${c.surface} !important;
+      }
+
+      html.bs-dark-mode .d2l-navigation-s-header,
+      html.bs-dark-mode .d2l-navigation-s-header-content,
+      html.bs-dark-mode .d2l-navigation-s-header-logo-area {
+        background-color: ${c.surface} !important;
+      }
+
+      html.bs-dark-mode .d2l-navigation-s-group,
+      html.bs-dark-mode .d2l-navigation-s-link {
+        background-color: transparent !important;
       }
 
       /* Nav menu group buttons and direct links (slotted light-DOM elements) */
@@ -284,6 +342,17 @@
         color: #e8e8e8 !important;
       }
 
+      html.bs-dark-mode .d2l-navigation-s-home-icon,
+      html.bs-dark-mode .d2l-navigation-s-notification,
+      html.bs-dark-mode .d2l-navigation-s-admin-menu {
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode .d2l-navigation-s-course-menu-divider,
+      html.bs-dark-mode .d2l-navigation-s-notifications-divider {
+        background-color: ${c.border} !important;
+      }
+
       /* Personal tools dropdown (Profile, Notifications, etc.) */
       html.bs-dark-mode .d2l-personal-tools-list {
         background-color: ${c.surface} !important;
@@ -300,6 +369,27 @@
         background-color: ${c.surface} !important;
       }
 
+      html.bs-dark-mode .d2l-course-banner-container {
+        position: relative !important;
+      }
+
+      html.bs-dark-mode .d2l-course-banner-image {
+        filter: brightness(0.7) saturate(0.85) !important;
+      }
+
+      html.bs-dark-mode .d2l-course-banner-container::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to bottom,
+          rgba(0, 0, 0, 0.55) 0%,
+          rgba(0, 0, 0, 0.25) 55%,
+          rgba(0, 0, 0, 0.65) 100%
+        );
+        pointer-events: none;
+      }
+
       /* Error fallback SVG placeholder in the banner */
       html.bs-dark-mode .d2l-course-banner-error-image-container {
         background-color: ${c.surface} !important;
@@ -311,6 +401,22 @@
       html.bs-dark-mode .d2l-tile {
         background-color: ${c.surface} !important;
         border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode .d2l-widget-header,
+      html.bs-dark-mode .d2l-homepage-header-wrapper,
+      html.bs-dark-mode .d2l-homepage-header-menu-wrapper {
+        background-color: ${c.surface} !important;
+        border-bottom-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode .d2l-widget-content,
+      html.bs-dark-mode .d2l-widget-content-padding {
+        background-color: ${c.surface} !important;
+      }
+
+      html.bs-dark-mode .d2l-homepage-header-wrapper .d2l-heading {
+        color: #e8e8e8 !important;
       }
 
       html.bs-dark-mode .d2l-widget.d2l-tile {
@@ -327,19 +433,10 @@
         background-color: ${c.surface} !important;
       }
 
-      /* ── Headings & text ─────────────────────────────────────────────────────── */
-      html.bs-dark-mode h1,
-      html.bs-dark-mode h2,
-      html.bs-dark-mode h3,
-      html.bs-dark-mode h4,
-      html.bs-dark-mode .d2l-heading,
-      html.bs-dark-mode .vui-heading-2,
-      html.bs-dark-mode .vui-heading-4 {
+      html.bs-dark-mode .d2l-body,
+      html.bs-dark-mode .d2l-typography,
+      html.bs-dark-mode .vui-typography {
         color: #e8e8e8 !important;
-      }
-
-      html.bs-dark-mode p {
-        color: #d0d0d0 !important;
       }
 
       /* ── Links ───────────────────────────────────────────────────────────────── */
@@ -350,7 +447,81 @@
 
       html.bs-dark-mode a:hover,
       html.bs-dark-mode .d2l-link:hover {
-        color: #7bbfff !important;
+        color: var(--bs-accent-hover) !important;
+      }
+
+      /* ── Menus, dropdowns, dialogs (light DOM shells) ───────────────────────── */
+      html.bs-dark-mode [role="dialog"],
+      html.bs-dark-mode .d2l-dialog,
+      html.bs-dark-mode .d2l-modal,
+      html.bs-dark-mode .d2l-popup,
+      html.bs-dark-mode .d2l-dropdown-content,
+      html.bs-dark-mode .d2l-overlay {
+        background-color: ${c.surface} !important;
+        color: #e8e8e8 !important;
+        border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode [role="dialog"] a,
+      html.bs-dark-mode .d2l-dialog a,
+      html.bs-dark-mode .d2l-popup a {
+        color: ${c.accent} !important;
+      }
+
+      html.bs-dark-mode [role="menu"],
+      html.bs-dark-mode [role="listbox"],
+      html.bs-dark-mode .d2l-menu,
+      html.bs-dark-mode .vui-list {
+        background-color: ${c.surface} !important;
+        border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode [role="menuitem"],
+      html.bs-dark-mode [role="option"],
+      html.bs-dark-mode .d2l-menu-item {
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode [role="menuitem"]:hover,
+      html.bs-dark-mode [role="option"]:hover,
+      html.bs-dark-mode .d2l-menu-item:hover {
+        background-color: var(--bs-surface-2) !important;
+      }
+
+      /* ── Tables/lists ───────────────────────────────────────────────────────── */
+      html.bs-dark-mode table,
+      html.bs-dark-mode .d2l-table {
+        background-color: ${c.surface} !important;
+        color: #e8e8e8 !important;
+      }
+
+      html.bs-dark-mode th,
+      html.bs-dark-mode td,
+      html.bs-dark-mode .d2l-table-row,
+      html.bs-dark-mode .d2l-table-cell {
+        border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode tr:hover,
+      html.bs-dark-mode .d2l-table-row:hover {
+        background-color: var(--bs-surface-2) !important;
+      }
+
+      /* ── Inputs in light DOM contexts ───────────────────────────────────────── */
+      html.bs-dark-mode input[type="text"],
+      html.bs-dark-mode input[type="search"],
+      html.bs-dark-mode input[type="email"],
+      html.bs-dark-mode input[type="password"],
+      html.bs-dark-mode textarea,
+      html.bs-dark-mode select {
+        background-color: ${c.surface} !important;
+        color: #e8e8e8 !important;
+        border-color: ${c.border} !important;
+      }
+
+      html.bs-dark-mode input::placeholder,
+      html.bs-dark-mode textarea::placeholder {
+        color: var(--bs-muted-text-2) !important;
       }
 
       /* ── Events/calendar list ────────────────────────────────────────────────── */
@@ -393,11 +564,28 @@
   function applyDarkMode(enabled) {
     isDarkMode = enabled;
     document.documentElement.classList.toggle('bs-dark-mode', enabled);
+    applyHeaderLogoSwap(enabled);
     const elements = findCourseElements();
     if (enabled) {
       applyCardEnhancements(elements);
     } else {
       removeCardEnhancements(elements);
+    }
+  }
+
+  function applyHeaderLogoSwap(enabled) {
+    const logoEls = document.querySelectorAll('d2l-labs-navigation-link-image.d2l-navigation-s-logo');
+    for (const el of logoEls) {
+      if (!originalHeaderLogoSrc.has(el)) {
+        originalHeaderLogoSrc.set(el, el.getAttribute('src'));
+      }
+
+      if (enabled) {
+        el.setAttribute('src', chrome.runtime.getURL('icons/BetterSpaceLetterLogo.png'));
+      } else {
+        const original = originalHeaderLogoSrc.get(el);
+        if (original) el.setAttribute('src', original);
+      }
     }
   }
 
