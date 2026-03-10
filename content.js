@@ -274,10 +274,11 @@
 
   // ── Card background images ────────────────────────────────────────────────────
   //
-  // Sets a CSS custom property --bs-card-image on d2l-card (host) and injects
-  // a sheet that applies it as background-image. The sheet is only added to cards
-  // that have a custom image, so cards without one are completely unaffected.
-  // The sheet is applied after bsCardSheet so its background-image !important wins.
+  // Target: .d2l-enrollment-card-image-container inside enrollCard.shadowRoot.
+  // We inject into enrollCard.shadowRoot.adoptedStyleSheets and read
+  // --bs-card-image (set on the enrollCard host) via CSS inheritance.
+  // d2l-organization-image is hidden with opacity:0 so the container keeps its
+  // dimensions while our custom background shows through.
 
   let bsCardImageSheet = null;
 
@@ -285,18 +286,13 @@
     if (bsCardImageSheet) return bsCardImageSheet;
     bsCardImageSheet = new CSSStyleSheet();
     bsCardImageSheet.replaceSync(`
-      :host {
+      .d2l-enrollment-card-image-container {
         background-image: var(--bs-card-image) !important;
         background-size: cover !important;
         background-position: center !important;
       }
-      :host::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        pointer-events: none;
-        z-index: 0;
+      .d2l-enrollment-card-image-container d2l-organization-image {
+        opacity: 0 !important;
       }
     `);
     return bsCardImageSheet;
@@ -304,18 +300,18 @@
 
   function applyCardImages(elements) {
     const sheet = getBsCardImageSheet();
-    elements.forEach(({ id, dCard }) => {
+    elements.forEach(({ id, enrollCard }) => {
       const url = savedImages[id];
       if (url) {
-        dCard.style.setProperty('--bs-card-image', `url('${url}')`);
-        if (dCard.shadowRoot && !dCard.shadowRoot.adoptedStyleSheets.includes(sheet)) {
-          dCard.shadowRoot.adoptedStyleSheets = [...dCard.shadowRoot.adoptedStyleSheets, sheet];
+        enrollCard.style.setProperty('--bs-card-image', `url('${url}')`);
+        if (enrollCard.shadowRoot && !enrollCard.shadowRoot.adoptedStyleSheets.includes(sheet)) {
+          enrollCard.shadowRoot.adoptedStyleSheets = [...enrollCard.shadowRoot.adoptedStyleSheets, sheet];
         }
       } else {
-        dCard.style.removeProperty('--bs-card-image');
-        if (dCard.shadowRoot) {
-          dCard.shadowRoot.adoptedStyleSheets =
-            dCard.shadowRoot.adoptedStyleSheets.filter((s) => s !== sheet);
+        enrollCard.style.removeProperty('--bs-card-image');
+        if (enrollCard.shadowRoot) {
+          enrollCard.shadowRoot.adoptedStyleSheets =
+            enrollCard.shadowRoot.adoptedStyleSheets.filter((s) => s !== sheet);
         }
       }
     });
